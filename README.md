@@ -2,7 +2,7 @@
 
 Interactive player scouting report built with Python and the Riot Games API.
 
-**Live site:** https://shinariii.github.io/tristan-scouting-report/
+**Live site:** https://shinariii.github.io/scout-tristan/
 
 ---
 
