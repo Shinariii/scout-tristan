@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tristan — LoL Scouting Report</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #08090d;
+  --surface: #0e1018;
+  --card: #12151f;
+  --border: #1c2030;
+  --gold: #e8b84b;
+  --gold-dim: #8a6a1e;
+  --blue: #3d7fff;
+  --red: #e84b4b;
+  --green: #4be87a;
+  --text: #c8ccd8;
+  --muted: #4a5168;
+  --white: #f0f2f8;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 300;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* noise texture overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 100;
+  opacity: 0.4;
+}
+
+/* scanline effect */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.03) 2px,
+    rgba(0,0,0,0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 99;
+}
+
+.wrap { position: relative; z-index: 1; max-width: 1000px; margin: 0 auto; padding: 0 28px; }
+
+/* ── HEADER ── */
+header {
+  padding: 80px 0 48px;
+  position: relative;
+}
+
+.header-inner {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 32px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 32px;
+}
+
+@media (max-width: 600px) { .header-inner { grid-template-columns: 1fr; } }
+
+.report-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 4px;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  opacity: 0;
+  animation: fadeIn 0.5s 0.1s forwards;
+}
+
+.player-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(72px, 14vw, 128px);
+  line-height: 0.9;
+  color: var(--white);
+  letter-spacing: 2px;
+  white-space: nowrap;
+  opacity: 0;
+  animation: fadeIn 0.5s 0.2s forwards;
+}
+
+.player-name span {
+  color: var(--gold);
+  display: block;
+}
+
+.header-meta {
+  text-align: right;
+  opacity: 0;
+  animation: fadeIn 0.5s 0.3s forwards;
+}
+
+@media (max-width: 600px) { .header-meta { text-align: left; } }
+
+.meta-item {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.meta-item strong { color: var(--text); font-weight: 400; }
+
+/* ── STATS STRIP ── */
+.stats-strip {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1px;
+  margin: 48px 0;
+  background: var(--border);
+  border: 1px solid var(--border);
+  opacity: 0;
+  animation: fadeIn 0.5s 0.4s forwards;
+}
+
+@media (max-width: 600px) { .stats-strip { grid-template-columns: repeat(3, 1fr); } }
+
+.stat-cell {
+  background: var(--card);
+  padding: 20px 16px;
+  text-align: center;
+}
+
+.stat-val {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 32px;
+  color: var(--gold);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+/* ── SECTION HEADER ── */
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.section-num {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 48px;
+  color: var(--border);
+  line-height: 1;
+  min-width: 40px;
+}
+
+.section-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+/* ── CHARTS SECTION ── */
+.charts-section {
+  margin-bottom: 56px;
+  opacity: 0;
+  animation: fadeIn 0.5s forwards;
+}
+
+.charts-section:nth-child(1) { animation-delay: 0.5s; }
+.charts-section:nth-child(2) { animation-delay: 0.6s; }
+.charts-section:nth-child(3) { animation-delay: 0.7s; }
+
+.chart-grid {
+  display: grid;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+}
+
+.chart-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+.chart-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+.chart-grid.cols-1 { grid-template-columns: 1fr; }
+
+@media (max-width: 600px) {
+  .chart-grid.cols-2,
+  .chart-grid.cols-3 { grid-template-columns: 1fr; }
+}
+
+.chart-card {
+  background: var(--card);
+  display: block;
+  text-decoration: none;
+  color: var(--text);
+  padding: 24px 20px;
+  position: relative;
+  overflow: hidden;
+  transition: background 0.2s;
+}
+
+.chart-card:hover { background: #161922; }
+
+.chart-card::before {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  transform: scaleX(0);
+  transition: transform 0.3s;
+}
+
+.chart-card:hover::before { transform: scaleX(1); }
+
+.chart-card-num {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  color: var(--gold-dim);
+  letter-spacing: 3px;
+  margin-bottom: 10px;
+}
+
+.chart-card-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  color: var(--white);
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.chart-card-desc {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.chart-arrow {
+  position: absolute;
+  top: 24px; right: 20px;
+  font-size: 18px;
+  color: var(--muted);
+  transition: color 0.2s, transform 0.2s;
+}
+
+.chart-card:hover .chart-arrow { color: var(--gold); transform: translate(3px, -3px); }
+
+/* ── INSIGHTS ── */
+.insights-section {
+  margin-bottom: 56px;
+  opacity: 0;
+  animation: fadeIn 0.5s 0.8s forwards;
+}
+
+.insights-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+}
+
+@media (max-width: 600px) { .insights-grid { grid-template-columns: 1fr; } }
+
+.insight-card {
+  background: var(--card);
+  padding: 24px 20px;
+  position: relative;
+}
+
+.insight-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2px;
+}
+
+.insight-card.positive::before { background: var(--green); }
+.insight-card.negative::before { background: var(--red); }
+.insight-card.neutral::before  { background: var(--gold); }
+
+.insight-tag {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.insight-card.positive .insight-tag { color: var(--green); }
+.insight-card.negative .insight-tag { color: var(--red); }
+.insight-card.neutral  .insight-tag { color: var(--gold); }
+
+.insight-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 18px;
+  color: var(--white);
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.insight-text { font-size: 12px; color: var(--muted); line-height: 1.8; }
+
+/* ── METHOD ── */
+.method-section {
+  border-top: 1px solid var(--border);
+  padding: 40px 0;
+  margin-bottom: 40px;
+  opacity: 0;
+  animation: fadeIn 0.5s 0.9s forwards;
+}
+
+.method-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+
+@media (max-width: 600px) { .method-grid { grid-template-columns: 1fr; } }
+
+.method-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.method-text { font-size: 12px; color: var(--muted); line-height: 1.8; }
+
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+
+.tag {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+/* ── FOOTER ── */
+footer {
+  padding: 24px 0;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  opacity: 0;
+  animation: fadeIn 0.5s 1s forwards;
+}
+
+@media (max-width: 600px) { footer { flex-direction: column; gap: 8px; text-align: center; } }
+
+.footer-text {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.footer-text a { color: var(--gold-dim); text-decoration: none; }
+.footer-text a:hover { color: var(--gold); }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="header-inner">
+      <div>
+        <p class="report-label">League of Legends — Scouting Report</p>
+        <h1 class="player-name">Tristan</h1>
+      </div>
+      <div class="header-meta">
+        <p class="meta-item">IGN <strong>worker co ops#mybad</strong></p>
+        <p class="meta-item">Rank <strong style="color: var(--gold);">Masters</strong></p>
+        <p class="meta-item">Role <strong>Top Lane</strong></p>
+        <p class="meta-item">Region <strong>NA</strong></p>
+        <p class="meta-item">Sample <strong>50 Ranked Games</strong></p>
+        <p class="meta-item">Patch <strong>16.10</strong></p>
+      </div>
+    </div>
+  </header>
+
+  <div class="stats-strip">
+    <div class="stat-cell">
+      <div class="stat-val">2.17</div>
+      <div class="stat-label">Avg KDA</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-val">35.3%</div>
+      <div class="stat-label">Kill Part.</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-val">8.2</div>
+      <div class="stat-label">CS / Min</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-val">884</div>
+      <div class="stat-label">Dmg / Min</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-val">200%</div>
+      <div class="stat-label">Gold→Dmg</div>
+    </div>
+  </div>
+
+  <div class="charts-section">
+    <div class="section-head">
+      <span class="section-num">01</span>
+      <span class="section-title">Champion Pool & Laning</span>
+    </div>
+    <div class="chart-grid cols-2">
+      <a class="chart-card" href="scout_champion_pool.html" target="_blank">
+        <div class="chart-card-num">01 — POOL</div>
+        <div class="chart-card-title">Champion Pool</div>
+        <div class="chart-card-desc">Win rate and key stats broken down by champion. Color coded by win rate.</div>
+        <span class="chart-arrow">↗</span>
+      </a>
+      <a class="chart-card" href="scout_gold_diff_by_champ.html" target="_blank">
+        <div class="chart-card-num">02 — LANING</div>
+        <div class="chart-card-title">Gold Diff at 10</div>
+        <div class="chart-card-desc">Average gold advantage or deficit at 10 minutes per champion.</div>
+        <span class="chart-arrow">↗</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="charts-section">
+    <div class="section-head">
+      <span class="section-num">02</span>
+      <span class="section-title">Performance Trends</span>
+    </div>
+    <div class="chart-grid cols-2">
+      <a class="chart-card" href="scout_kda_trend.html" target="_blank">
+        <div class="chart-card-num">03 — TREND</div>
+        <div class="chart-card-title">KDA Over Time</div>
+        <div class="chart-card-desc">KDA across last 50 ranked games. Green = win, red = loss.</div>
+        <span class="chart-arrow">↗</span>
+      </a>
+      <a class="chart-card" href="scout_kill_participation.html" target="_blank">
+        <div class="chart-card-num">04 — TREND</div>
+        <div class="chart-card-title">Kill Participation</div>
+        <div class="chart-card-desc">Team fight involvement trend across last 50 games.</div>
+        <span class="chart-arrow">↗</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="charts-section">
+    <div class="section-head">
+      <span class="section-num">03</span>
+      <span class="section-title">Efficiency & Profile</span>
+    </div>
+    <div class="chart-grid cols-2">
+      <a class="chart-card" href="scout_damage_vs_cs.html" target="_blank">
+        <div class="chart-card-num">05 — EFFICIENCY</div>
+        <div class="chart-card-title">Damage vs CS/min</div>
+        <div class="chart-card-desc">Resource efficiency scatter. Top right = high CS and high damage output.</div>
+        <span class="chart-arrow">↗</span>
+      </a>
+      <a class="chart-card" href="scout_radar.html" target="_blank">
+        <div class="chart-card-num">06 — PROFILE</div>
+        <div class="chart-card-title">Performance Radar</div>
+        <div class="chart-card-desc">Overall player profile across KDA, CS, damage, kill participation, and gold efficiency.</div>
+        <span class="chart-arrow">↗</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="insights-section">
+    <div class="section-head">
+      <span class="section-num">04</span>
+      <span class="section-title">Scout Notes</span>
+    </div>
+    <div class="insights-grid">
+      <div class="insight-card positive">
+        <div class="insight-tag">Strength</div>
+        <div class="insight-title">Strong Early Laner</div>
+        <p class="insight-text">Averages positive gold diff at 10 on most champions. Jayce, Ambessa, Gnar, and Pantheon all show consistent early leads, indicating strong trading patterns and wave management.</p>
+      </div>
+      <div class="insight-card negative">
+        <div class="insight-tag">Weakness</div>
+        <div class="insight-title">Lead Conversion</div>
+        <p class="insight-text">Jayce shows +326 gold at 10 but only 33% win rate across 12 games — a significant gap suggesting difficulty converting early advantages into game wins through mid/late macro.</p>
+      </div>
+      <div class="insight-card positive">
+        <div class="insight-tag">Strength</div>
+        <div class="insight-title">Best Champion: Rumble</div>
+        <p class="insight-text">77.8% win rate across 9 games with positive gold diff. Most balanced performer — wins lane and wins games. Highest priority pick to enable or deny.</p>
+      </div>
+      <div class="insight-card neutral">
+        <div class="insight-tag">Note</div>
+        <div class="insight-title">Renekton Anomaly</div>
+        <p class="insight-text">Loses lane hard on Renekton (-570 gold at 10) but maintains 66.7% win rate. Suggests strong teamfighting or macro awareness that compensates for poor lane phases.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="method-section">
+    <div class="method-grid">
+      <div>
+        <p class="method-title">Methodology</p>
+        <p class="method-text">Data pulled via Riot Games API. Last 50 ranked solo/duo games analyzed. Timeline data used for gold diff at 10. All stats normalized per minute where applicable to account for game length variance.</p>
+      </div>
+      <div>
+        <p class="method-title">Built With</p>
+        <div class="tags">
+          <span class="tag">Python</span>
+          <span class="tag">Pandas</span>
+          <span class="tag">Plotly</span>
+          <span class="tag">Riot API</span>
+          <span class="tag">Google Colab</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <span class="footer-text">Data via <a href="https://developer.riotgames.com" target="_blank">Riot Games API</a></span>
+    <span class="footer-text">Patch 16.10 &nbsp;·&nbsp; NA Ranked Solo/Duo</span>
+  </footer>
+
+</div>
+</body>
+</html>
